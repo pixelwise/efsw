@@ -74,7 +74,7 @@ class FileWatcherFSEvents : public FileWatcherImpl {
 	/// @return Returns a list of the directories that are being watched
 	std::vector<std::string> directories() override;
 
-  protected:
+private:
 	static void FSEventCallback( ConstFSEventStreamRef streamRef, void* userData, size_t numEvents,
 								 void* eventPaths, const FSEventStreamEventFlags eventFlags[],
 								 const FSEventStreamEventId eventIds[] );
@@ -90,8 +90,6 @@ class FileWatcherFSEvents : public FileWatcherImpl {
 	bool pathInWatches( const std::string& path ) override;
 
 	std::mutex mWatchesMutex;
-	std::condition_variable mWatchCond;
-
 };
 
 } // namespace efsw

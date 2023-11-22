@@ -43,7 +43,7 @@ class WatcherFSEvents : public Watcher {
 	Atomic<FileWatcherFSEvents*> FWatcher;
 	FSEventStreamRef FSStream;
 
-  protected:
+private:
 	void handleAddModDel( const Uint32& flags, const std::string& path, std::string& dirPath,
 						  std::string& filePath );
 

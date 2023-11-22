@@ -72,8 +72,6 @@ FileWatcherFSEvents::FileWatcherFSEvents( FileWatcher* parent ) :
 FileWatcherFSEvents::~FileWatcherFSEvents() {
 	mInitOK = false;
 
-	mWatchCond.notify_all();
-
 	WatchMap::iterator iter = mWatches.begin();
 
 	for ( ; iter != mWatches.end(); ++iter ) {
@@ -132,8 +130,6 @@ WatchID FileWatcherFSEvents::addWatch( const std::string& directory, FileWatchLi
 		Lock lock( mWatchesLock );
 		mWatches.insert( std::make_pair( mLastWatchID, pWatch ) );
 	}
-
-	mWatchCond.notify_all();
 	return pWatch->ID;
 }
 
