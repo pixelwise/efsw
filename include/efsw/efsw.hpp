@@ -29,6 +29,7 @@
 #define ESFW_HPP
 
 #include <functional>
+#include <stdexcept>
 #include <vector>
 #include <string>
 #include <vector>
@@ -229,7 +230,7 @@ class FileWatchListener {
 								   std::string oldFilename = "" ) = 0;
 };
 
-class GenericFileWatchListener
+class GenericFileWatchListener : public FileWatchListener
 {
 public:
 	struct Event
@@ -240,7 +241,8 @@ public:
 		Action action;
 		std::string oldFilename;
 	};
-	GenericFileWatchListener(std::function<void(Event)> callback)
+	using Callback = std::function<void(Event)>;
+	GenericFileWatchListener(Callback callback)
 	: mCallback(std::move(callback))
 	{
 	}
@@ -251,8 +253,35 @@ public:
 		mCallback({watchid, dir, filename, action, std::move(oldFilename)});
 	}
 private:
-	std::function<void(Event)> mCallback;
+	Callback mCallback;
 };
+
+class ScopedWatchListener
+{
+public:
+	ScopedWatchListener(
+		FileWatcher& watcher,
+		GenericFileWatchListener::Callback callback,
+		const std::string& directory,
+		bool recursive = false
+	)
+	: mListener(std::move(callback))
+	, mWatcher(&watcher)
+	, mWatchID(watcher.addWatch(directory,&mListener,recursive))
+	{
+		if (!mWatchID)
+			throw std::runtime_error{"could not establish watch of '" + directory + "'"};
+	}
+	~ScopedWatchListener()
+	{
+		mWatcher->removeWatch(mWatchID);
+	}
+private:
+	GenericFileWatchListener mListener;
+	FileWatcher* mWatcher;
+	WatchID mWatchID;
+};
+
 
 /// Optional, typically platform specific parameter for customization of a watcher.
 /// @class WatcherOption
