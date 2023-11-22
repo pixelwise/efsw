@@ -28,6 +28,7 @@
 #ifndef ESFW_HPP
 #define ESFW_HPP
 
+#include <functional>
 #include <vector>
 #include <string>
 #include <vector>
@@ -226,6 +227,31 @@ class FileWatchListener {
 	virtual void handleFileAction( WatchID watchid, const std::string& dir,
 								   const std::string& filename, Action action,
 								   std::string oldFilename = "" ) = 0;
+};
+
+class GenericFileWatchListener
+{
+public:
+	struct Event
+	{
+		WatchID watchid;
+		const std::string& dir;
+		const std::string& filename;
+		Action action;
+		std::string oldFilename;
+	};
+	GenericFileWatchListener(std::function<void(Event)> callback)
+	: mCallback(std::move(callback))
+	{
+	}
+	virtual void handleFileAction( WatchID watchid, const std::string& dir,
+								   const std::string& filename, Action action,
+								   std::string oldFilename = "" )
+	{
+		mCallback({watchid, dir, filename, action, std::move(oldFilename)});
+	}
+private:
+	std::function<void(Event)> mCallback;
 };
 
 /// Optional, typically platform specific parameter for customization of a watcher.
