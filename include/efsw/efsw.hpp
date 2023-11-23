@@ -265,22 +265,46 @@ public:
 		const std::string& directory,
 		bool recursive = false
 	)
-	: mListener(std::move(callback))
+	: mListener(new GenericFileWatchListener{std::move(callback)})
 	, mWatcher(&watcher)
-	, mWatchID(watcher.addWatch(directory,&mListener,recursive))
+	, mWatchID(watcher.addWatch(directory,mListener.get(),recursive))
 	{
 		if (!mWatchID)
 			throw std::runtime_error{"could not establish watch of '" + directory + "'"};
 	}
+	ScopedWatchListener(const ScopedWatchListener& other) = delete;
+	ScopedWatchListener& operator=(const ScopedWatchListener& other) = delete;
+	ScopedWatchListener& operator=(ScopedWatchListener&& other)
+	{
+		release();
+		mListener = std::move(other.mListener);
+		mWatcher = other.mWatcher;
+		return *this;
+	}
+	ScopedWatchListener(ScopedWatchListener&& other)
+	: mListener(std::move(other.mListener))
+	, mWatcher(other.mWatcher)
+	{
+		other.mWatcher = 0;
+	}
 	~ScopedWatchListener()
 	{
-		mWatcher->removeWatch(mWatchID);
+		release();
 	}
 private:
-	GenericFileWatchListener mListener;
-	FileWatcher* mWatcher;
-	WatchID mWatchID;
+	void release()
+	{
+		if (mWatcher)
+		{
+			mWatcher->removeWatch(mWatchID);
+			mWatcher = 0;
+		}
+	}
+	std::unique_ptr<GenericFileWatchListener> mListener;
+	FileWatcher* mWatcher = 0;
+	WatchID mWatchID = 0;
 };
+
 
 
 /// Optional, typically platform specific parameter for customization of a watcher.
