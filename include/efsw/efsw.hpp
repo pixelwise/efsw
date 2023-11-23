@@ -28,11 +28,17 @@
 #ifndef ESFW_HPP
 #define ESFW_HPP
 
+#include "efsw/Mutex.hpp"
+#include "efsw/Lock.hpp"
+
 #include <functional>
+#include <mutex>
 #include <stdexcept>
 #include <vector>
 #include <string>
 #include <vector>
+#include <map>
+#include <filesystem>
 
 #if defined( _WIN32 )
 #ifdef EFSW_DYNAMIC
@@ -305,7 +311,178 @@ private:
 	WatchID mWatchID = 0;
 };
 
+class ConvenientFileWatcher
+{
+public:
+	class Guard
+	{
+	public:
+		Guard(ConvenientFileWatcher& watcher, std::string directory, size_t id)
+		: mWatcher(&watcher)
+		, mDirectory(std::move(directory))
+		, mId(id)
+		{
+		}
+		Guard(const Guard& other) = delete;
+		Guard& operator=(const Guard& other) = delete;
+		Guard& operator=(Guard&& other)
+		{
+			release();
+			mWatcher = other.mWatcher;
+			mDirectory = std::move(other.mDirectory);
+			mId = other.mId;
+			return *this;
+		}
+		Guard(Guard&& other)
+		{
+			*this = std::move(other);
+		}
+		~Guard()
+		{
+			release();
+		}
+	private:
+		void release()
+		{
+			if (mWatcher)
+			{
+				mWatcher->removeWatch(mDirectory, mId);
+				mWatcher = 0;
+			}
+		}
+		ConvenientFileWatcher* mWatcher = 0;
+		std::string mDirectory;
+		size_t mId = 0;
+	};
 
+	ConvenientFileWatcher()
+	: mDirectoryWatcher(false)
+	{
+	}
+
+	~ConvenientFileWatcher()
+	{
+	}
+
+	Guard addWatch(const std::filesystem::path& path, GenericFileWatchListener::Callback callback)
+	{
+		Lock lock{mMutex};
+		if (is_directory(path))
+		{
+			auto directory = path.string();
+			auto& watcher = getDirectoryWatch(directory);
+			auto id = watcher.addDirectoryCallback(callback);
+			mDirectoryWatcher.watch();
+			return {*this, directory, id};
+		}
+		else
+		{
+			auto directory = path.parent_path();
+			auto filename = path.filename();
+			auto& watcher = getDirectoryWatch(directory);
+			auto id = watcher.addFileCallback(filename, callback);
+			mDirectoryWatcher.watch();
+			return {*this, directory, id};
+		}
+	}
+
+private:
+
+	class DirectoryWatch
+	{
+	public:
+		DirectoryWatch(FileWatcher& watcher, const std::string directory)
+		: mListener(ScopedWatchListener{
+			watcher,
+			[this](GenericFileWatchListener::Event event){
+				handle(std::move(event));
+			},
+			directory
+		})
+		{
+		}
+		size_t addDirectoryCallback(GenericFileWatchListener::Callback callback)
+		{
+			Lock lock{mMutex};
+			mDirectoryCallbacks[++mLastId] = std::move(callback);
+			return mLastId;
+		}
+		size_t addFileCallback(std::string filename, GenericFileWatchListener::Callback callback)
+		{
+			Lock lock{mMutex};
+			mFileCallbacks[++mLastId] = {
+				std::move(filename),
+				std::move(callback),
+			};
+			return mLastId;
+		}
+		void removeCallback(size_t id)
+		{
+			Lock lock{mMutex};
+			mFileCallbacks.erase(id);
+			mDirectoryCallbacks.erase(id);
+		}
+		bool hasCallbacks()
+		{
+			Lock lock{mMutex};
+			return !mDirectoryCallbacks.empty() || !mFileCallbacks.empty();
+		}
+	private:
+		struct FileCallback
+		{
+			std::string filename;
+			GenericFileWatchListener::Callback callback;
+		};
+		void handle(GenericFileWatchListener::Event event)
+		{
+			Lock lock{mMutex};
+			for (auto& callback : mDirectoryCallbacks)
+				callback.second(event);
+			for (auto& callback : mFileCallbacks)
+				if (callback.second.filename == event.filename)
+					callback.second.callback(event);
+		}
+		Mutex mMutex;
+		ScopedWatchListener mListener;
+		size_t mLastId = 0;
+		std::map<size_t,GenericFileWatchListener::Callback> mDirectoryCallbacks;
+		std::map<size_t,FileCallback> mFileCallbacks;
+	};
+
+	DirectoryWatch& getDirectoryWatch(const std::string& directory)
+	{
+		if (auto i = mDirectoryWatches.find(directory); i != mDirectoryWatches.end())
+			return *i->second;
+		auto i = mDirectoryWatches.insert({
+			directory,
+			std::unique_ptr<DirectoryWatch>{new DirectoryWatch{
+				mDirectoryWatcher,
+				directory
+			}}
+		});
+		return *i.first->second;
+	}
+
+	void removeWatch(const std::string& directory, size_t id)
+	{
+		Lock lock{mMutex};
+		if (auto i = mDirectoryWatches.find(directory); i != mDirectoryWatches.end())
+		{
+			i->second->removeCallback(id);
+			if (!i->second->hasCallbacks())
+				mDirectoryWatches.erase(i);
+		}
+	}
+	Mutex mMutex;
+	FileWatcher mDirectoryWatcher;
+	std::map<std::string, std::unique_ptr<DirectoryWatch>> mDirectoryWatches;
+};
+
+inline ConvenientFileWatcher::Guard watch(const std::string& path, GenericFileWatchListener::Callback callback)
+{
+	static ConvenientFileWatcher watcher;
+	return watcher.addWatch(path, std::move(callback));
+}
 
 /// Optional, typically platform specific parameter for customization of a watcher.
 /// @class WatcherOption
