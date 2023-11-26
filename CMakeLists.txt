@@ -16,14 +16,14 @@ include(GNUInstallDirs)
 find_package(Threads REQUIRED)
 
 option(VERBOSE "Build efsw with verbose mode.")
-option(BUILD_SHARED_LIBS "Build efsw as a shared library" ON)
-option(BUILD_STATIC_LIBS "Build efsw as a static library" ON)
-option(BUILD_TEST_APP "Build the test app" ${ESFW_MAIN_PROJECT})
+option(EFSW_BUILD_SHARED_LIBS "Build efsw as a shared library" OFF)
+option(EFSW_BUILD_STATIC_LIBS "Build efsw as a static library" ON)
+option(EFSW_BUILD_TEST_APP "Build the test app" ${ESFW_MAIN_PROJECT})
 option(EFSW_INSTALL "Add efsw install targets" ${ESFW_MAIN_PROJECT})
 
 add_library(efsw)
 
-if(BUILD_STATIC_LIBS)
+if(EFSW_BUILD_STATIC_LIBS)
 	add_library(efsw-static STATIC)
 
 	target_include_directories(efsw-static
@@ -67,7 +67,7 @@ endif()
 
 target_compile_features(efsw PRIVATE cxx_std_11)
 
-if(BUILD_SHARED_LIBS)
+if(EFSW_BUILD_SHARED_LIBS)
 	target_compile_definitions(efsw PRIVATE EFSW_DYNAMIC EFSW_EXPORTS)
 endif()
 
@@ -128,7 +128,7 @@ target_compile_definitions(efsw PRIVATE $<IF:$<CONFIG:Debug>,DEBUG,NDEBUG>)
 if(APPLE)
 	set(MAC_LIBS "-framework CoreFoundation" "-framework CoreServices")
 	target_link_libraries(efsw PRIVATE ${MAC_LIBS})
-	if(BUILD_STATIC_LIBS)
+	if(EFSW_BUILD_STATIC_LIBS)
 		target_link_libraries(efsw-static PRIVATE ${MAC_LIBS})
 	endif()
 elseif(NOT(${CMAKE_SYSTEM_NAME} MATCHES "Haiku") AND NOT WIN32)
@@ -137,7 +137,7 @@ endif()
 
 target_sources(efsw PRIVATE ${EFSW_CPP_SOURCE})
 
-if(BUILD_STATIC_LIBS)
+if(EFSW_BUILD_STATIC_LIBS)
 	target_sources(efsw-static PRIVATE ${EFSW_CPP_SOURCE})
 endif()
 
@@ -172,7 +172,7 @@ if(EFSW_INSTALL)
 	install(EXPORT efswExport NAMESPACE efsw:: DESTINATION "${packageDestDir}" FILE ${PROJECT_NAME}Targets.cmake)
 	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/efswConfig.cmake DESTINATION "${packageDestDir}")
 
-	if(BUILD_SHARED_LIBS)
+	if(EFSW_BUILD_SHARED_LIBS)
 		install(TARGETS efsw-static EXPORT efswExport
 			LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 			ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -190,7 +190,7 @@ if(EFSW_INSTALL)
 	endif()
 endif()
 
-if(BUILD_TEST_APP)
+if(EFSW_BUILD_TEST_APP)
 	# C++ test application
 	add_executable(efsw-test src/test/efsw-test.cpp)
 	target_link_libraries(efsw-test efsw-static)
