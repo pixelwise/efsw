@@ -28,7 +28,7 @@ namespace efsw {
 
 FileWatcherInotify::FileWatcherInotify( FileWatcher* parent ) :
 	FileWatcherImpl( parent ), mFD( -1 ), mThread( NULL ), mIsTakingAction( false ) {
-	mFD = inotify_init();
+	mFD = inotify_init1(IN_CLOEXEC);
 
 	if ( mFD < 0 ) {
 		efDEBUG( "Error: %s\n", strerror( errno ) );

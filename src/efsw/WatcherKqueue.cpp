@@ -1,4 +1,5 @@
 #include <efsw/WatcherKqueue.hpp>
+#include <sys/fcntl.h>
 
 #if EFSW_PLATFORM == EFSW_PLATFORM_KQUEUE || EFSW_PLATFORM == EFSW_PLATFORM_FSEVENTS
 
@@ -45,7 +46,11 @@ WatcherKqueue::WatcherKqueue( WatchID watchid, const std::string& dirname,
 	Watcher( watchid, dirname, listener, recursive ),
 	mLastWatchID( 0 ),
 	mChangeListCount( 0 ),
+#ifdef __FreeBSD__
+	mKqueue( kqueue1(O_CLOEXEC) ),
+#else
 	mKqueue( kqueue() ),
+#endif
 	mWatcher( watcher ),
 	mParent( parent ),
 	mInitOK( true ),
@@ -58,6 +63,10 @@ WatcherKqueue::WatcherKqueue( WatchID watchid, const std::string& dirname,
 		mInitOK = false;
 		mErrno = errno;
 	} else {
+#ifndef __FreeBSD__
+		// this is racey, but only freebsd has kqueue1
+		fcntl(mKqueue, F_SETFD, fcntl(mKqueue, F_GETFD) | FD_CLOEXEC);
+#endif
 		mWatcher->addFD();
 	}
 }
@@ -90,7 +99,7 @@ void WatcherKqueue::addAll() {
 	efDEBUG( "addAll(): Added folder: %s\n", Directory.c_str() );
 
 	// add base dir
-	int fd = open( Directory.c_str(), O_EVTONLY );
+	int fd = open( Directory.c_str(), O_EVTONLY | O_CLOEXEC);
 
 	if ( -1 == fd ) {
 		efDEBUG( "addAll(): Couldn't open folder: %s\n", Directory.c_str() );
@@ -156,7 +165,7 @@ void WatcherKqueue::addFile( const std::string& name, bool emitEvents ) {
 	efDEBUG( "addFile(): Added: %s\n", name.c_str() );
 
 	// Open the file to get the file descriptor
-	int fd = open( name.c_str(), O_EVTONLY );
+	int fd = open( name.c_str(), O_EVTONLY | O_CLOEXEC);
 
 	if ( fd == -1 ) {
 		efDEBUG( "addFile(): Could open file descriptor for %s. File descriptor count: %ld\n",
