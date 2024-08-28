@@ -292,50 +292,39 @@ void FileWatcherInotify::run() {
 
 				while ( i < len ) {
 					struct inotify_event* pevent = (struct inotify_event*)&buff[i];
-
-					{
-						{
-							Lock lock( mWatchesLock );
-
-							wit = mWatches.find( pevent->wd );
-						}
-
-						if ( wit != mWatches.end() ) {
-							handleAction( wit->second, (char*)pevent->name, pevent->mask );
-
-							if ( ( pevent->mask & IN_MOVED_TO ) && wit->second == currentMoveFrom &&
-								 pevent->cookie == currentMoveCookie ) {
-								/// make pair success
-								currentMoveFrom = NULL;
-								currentMoveCookie = -1;
-							} else if ( pevent->mask & IN_MOVED_FROM ) {
-								// Previous event was moved from and current event is moved from
-								// Treat it as a DELETE or moved ouside watches
-								if ( lastWasMovedFrom && currentMoveFrom ) {
-									mMovedOutsideWatches.push_back(
-										std::make_pair( currentMoveFrom, prevOldFileName ) );
-								}
-
-								currentMoveFrom = wit->second;
-								currentMoveCookie = pevent->cookie;
-							} else {
-								/// Keep track of the IN_MOVED_FROM events to know
-								/// if the IN_MOVED_TO event is also fired
-								if ( currentMoveFrom ) {
-									mMovedOutsideWatches.push_back(
-										std::make_pair( currentMoveFrom, prevOldFileName ) );
-								}
-
-								currentMoveFrom = NULL;
-								currentMoveCookie = -1;
+					Lock lock( mWatchesLock );
+					wit = mWatches.find( pevent->wd );
+					if ( wit != mWatches.end() ) {
+						handleAction( wit->second, (char*)pevent->name, pevent->mask );
+						if ( ( pevent->mask & IN_MOVED_TO ) && wit->second == currentMoveFrom &&
+							 pevent->cookie == currentMoveCookie ) {
+							/// make pair success
+							currentMoveFrom = NULL;
+							currentMoveCookie = -1;
+						} else if ( pevent->mask & IN_MOVED_FROM ) {
+							// Previous event was moved from and current event is moved from
+							// Treat it as a DELETE or moved ouside watches
+							if ( lastWasMovedFrom && currentMoveFrom ) {
+								mMovedOutsideWatches.push_back(
+									std::make_pair( currentMoveFrom, prevOldFileName ) );
 							}
+							currentMoveFrom = wit->second;
+							currentMoveCookie = pevent->cookie;
+						} else {
+							/// Keep track of the IN_MOVED_FROM events to know
+							/// if the IN_MOVED_TO event is also fired
+							if ( currentMoveFrom ) {
+								mMovedOutsideWatches.push_back(
+									std::make_pair( currentMoveFrom, prevOldFileName ) );
+							}
+
+							currentMoveFrom = NULL;
+							currentMoveCookie = -1;
 						}
-
-						lastWasMovedFrom = ( pevent->mask & IN_MOVED_FROM ) != 0;
-						if ( pevent->mask & IN_MOVED_FROM )
-							prevOldFileName = std::string( (char*)pevent->name );
 					}
-
+					lastWasMovedFrom = ( pevent->mask & IN_MOVED_FROM ) != 0;
+					if ( pevent->mask & IN_MOVED_FROM )
+						prevOldFileName = std::string( (char*)pevent->name );
 					i += sizeof( struct inotify_event ) + pevent->len;
 				}
 			}
