@@ -275,7 +275,7 @@ void FileWatcherInotify::run() {
 			len = read( mFD, buff, BUFF_SIZE );
 
 			if ( len != -1 ) {
-				for (ssize_t i = 0; i < len; i += sizeof( struct inotify_event ) + pevent->len) {
+				for (ssize_t i = 0; i < len; i += sizeof( struct inotify_event ) + ((struct inotify_event*)&buff[i])->len) {
 					struct inotify_event* pevent = (struct inotify_event*)&buff[i];
 					Lock initLock( mInitLock );
 					Lock lock( mWatchesLock );
