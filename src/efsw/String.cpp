@@ -155,12 +155,12 @@ String::String( const std::wstring& wideString ) {
 }
 #endif
 
-String::String( const StringBaseType* utf32String ) {
-	if ( utf32String )
-		mString = utf32String;
-}
+// String::String( const StringBaseType* utf32String ) {
+// 	if ( utf32String )
+// 		mString = utf32String;
+// }
 
-String::String( const StringType& utf32String ) : mString( utf32String ) {}
+// String::String( const StringType& utf32String ) : mString( utf32String ) {}
 
 String::String( const String& str ) : mString( str.mString ) {}
 
@@ -438,11 +438,11 @@ String& String::append( size_t n, char c ) {
 	return *this;
 }
 
-String& String::append( std::size_t n, StringBaseType c ) {
-	mString.append( n, c );
+// String& String::append( std::size_t n, StringBaseType c ) {
+// 	mString.append( n, c );
 
-	return *this;
-}
+// 	return *this;
+// }
 
 String& String::replace( size_t pos1, size_t n1, const String& str ) {
 	mString.replace( pos1, n1, str.mString );

@@ -24,7 +24,7 @@ namespace efsw {
  * **/
 class String {
   public:
-	typedef Uint32 StringBaseType;
+	typedef char StringBaseType;
 	typedef std::basic_string<StringBaseType> StringType;
 	typedef StringType::iterator Iterator;							 //! Iterator type
 	typedef StringType::const_iterator ConstIterator;				 //! Constant iterator type
@@ -143,6 +143,7 @@ class String {
 	String( const std::wstring& wideString );
 #endif
 
+#if 0
 	/** @brief Construct from a null-terminated C-style UTF-32 string
 	** @param utf32String UTF-32 string to assign
 	**/
@@ -152,7 +153,7 @@ class String {
 	** @param utf32String UTF-32 string to assign
 	**/
 	String( const StringType& utf32String );
-
+#endif
 	/** @brief Copy constructor
 	** @param str Instance to copy
 	**/
@@ -430,7 +431,7 @@ class String {
 
 	String& append( std::size_t n, char c );
 
-	String& append( std::size_t n, StringBaseType c );
+	// String& append( std::size_t n, StringBaseType c );
 
 	template <class InputIterator> String& append( InputIterator first, InputIterator last ) {
 		mString.append( first, last );
